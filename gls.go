@@ -53,3 +53,8 @@ func GetSafe() interface{} {
     }
     return cntr.data
 }
+
+func Go(fn func()) {
+    data := Get()
+    go With(data, fn)
+}

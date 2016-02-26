@@ -6,11 +6,15 @@ import (
     "testing"
 )
 
-func TestData(t *testing.T) {
+func makeUniqueStr() string {
     raw := make([]byte, 16)
     rand.Read(raw)
-    str := hex.EncodeToString(raw)
-    Go(&str, func() {
+    return hex.EncodeToString(raw)
+}
+
+func TestData(t *testing.T) {
+    str := makeUniqueStr()
+    With(&str, func() {
         if GetSafe() == nil {
             t.Fatal("GetSafe returns nil")
         }
@@ -44,4 +48,18 @@ func TestNoDataPanic(t *testing.T) {
     if !recovered {
         t.Fatal("Get not panic without data")
     }
+}
+
+func TestFwGoRoutine(t *testing.T) {
+    original := makeUniqueStr()
+    With(original, func() {
+        ch := make(chan string)
+        Go(func() {
+            ch <- Get().(string)
+        })
+        str := <- ch
+        if str != original {
+            t.Fatal("Get returns a different value")
+        }
+    })
 }

@@ -4,7 +4,7 @@ package gls
 
 var magicNums = []uint64{0xdb8111e56cf1657a, 0x8c325387ac2b1f39}
 
-func Go(data interface{}, fn func()) {
+func With(data interface{}, fn func()) {
     d := &dataCntr{data}
     mark(fn, d, magicNums[0], magicNums[1])
 }

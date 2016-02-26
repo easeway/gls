@@ -29,13 +29,43 @@ func myWork() {
 
 func handler(req *Request) {
     context := contextFromRequest(req)
-    gls.Go(context, myWork)
+    gls.With(context, myWork)
 }
 ```
 
-`gls.Get()` requires `gls.Go` called, otherwise it will `panic`.
+`gls.Get()` requires `gls.With` called, otherwise it will `panic`.
 So it's guaranteed the returned value is present.
-To prevent `panic`, use `gls.GetSafe()` which returns `nil` if `gls.Go` is never called.
+To prevent `panic`, use `gls.GetSafe()` which returns `nil` if `gls.With` is never called.
+
+The context doesn't go across go routines.
+If the request must be handled in separate go routines, the context should be forwarded.
+A helper `gls.Go` is provided to spawn a go routine with current context forwarded:
+
+```go
+
+func workerFn() {
+    // this is in a separate go routine
+    context := gls.Get().(*Context)
+}
+
+func myHandler() {
+    gls.Go(workerFn)
+}
+
+```
+
+This above code is equivalent to:
+
+```go
+func workerFn() {
+    context := gls.Get().(*Context)
+}
+
+func myHandler() {
+    context := gls.Get().(*Context)
+    go gls.With(context, workerFn)
+}
+```
 
 ## How it works
 
@@ -54,7 +84,13 @@ the context associated with current Go routine.
 
   ```
   context := gls.Get()
-  go gls.Go(context, workFn)
+  go gls.With(context, workFn)
+  ```
+
+  or with helper
+
+  ```
+  gls.Go(workFn)
   ```
 
 - Limited buffer for stack trace
