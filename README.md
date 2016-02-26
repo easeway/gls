@@ -13,7 +13,7 @@ to pass `*http.Request` all the way down to every function called.
 But we want most of the functions be able to access the HTTP request,
 or at least be aware of some information in the HTTP request (e.g. RequestId).
 With `gls`, we don't need to pass request to every function which is still
-able to get the request using `gls.Ctx()`.
+able to get the request using `gls.Get()`.
 
 ## Usage
 
@@ -23,15 +23,19 @@ type Context struct {
 }
 
 func myWork() {
-    ctx := gls.Ctx().(*Context)
+    context := gls.Get().(*Context)
     ...
 }
 
 func handler(req *Request) {
     context := contextFromRequest(req)
-    gls.WithCtx(context, myWork)
+    gls.Go(context, myWork)
 }
 ```
+
+`gls.Get()` requires `gls.Go` called, otherwise it will `panic`.
+So it's guaranteed the returned value is present.
+To prevent `panic`, use `gls.GetSafe()` which returns `nil` if `gls.Go` is never called.
 
 ## How it works
 
@@ -49,10 +53,8 @@ the context associated with current Go routine.
   The context is for one Go routine, if some functions are invoked using `go fn()`, the context should be explicitly passed:
 
   ```
-  context := gls.Ctx()
-  go func() {
-      gls.WithCtx(context, workFn)
-  }()
+  context := gls.Get()
+  go gls.Go(context, workFn)
   ```
 
 - Limited buffer for stack trace
@@ -61,6 +63,11 @@ the context associated with current Go routine.
   The default buffer size is defined in `gls.StackBufferSize`.
   If the stack will become very deep, please tune `gls.StackBufferSize`
   to a large value in the beginning of your program.
+
+- Supported platforms and architectures
+
+  The implementation is a little different on 32-bit/64-bit architectures,
+  because the size of uint passed in the function is different.
 
 ## License
 MIT

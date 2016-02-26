@@ -1,60 +1,55 @@
 package gls
 
 import (
-    "bytes"
     "strconv"
-    "strings"
+    "regexp"
     "runtime"
     "unsafe"
 )
 
-const (
-	magicFn = "._6cf1657a_db81_11e5_ac2b_1f398c325387"
-)
+var StackBufferSize = 4096
 
-var (
-    StackBufferSize = 4096
-)
-
-type context struct {
-    userContext interface{}
-}
-
-func WithCtx(ctx interface{}, fn func()) {
-    containingCtx := &context{ctx}
-    _6cf1657a_db81_11e5_ac2b_1f398c325387(fn, containingCtx)
-}
-
-func Ctx() interface{} {
-    stackBuf := make([]byte, StackBufferSize)
-    actualSize := runtime.Stack(stackBuf, false)
-    buf := bytes.NewBuffer(stackBuf[0:actualSize])
-    var err error = nil
-    var line string
-    for err == nil {
-        line, err = buf.ReadString('\n')
-        line = strings.TrimSpace(line)
-        if !strings.HasSuffix(line, ")") {
-			continue
-		}
-		pos := strings.LastIndexByte(line, '(')
-        start := pos - len(magicFn)
-		if start <= 0 {
-			continue
-		}
-		if line[start:pos] == magicFn {
-			if ptrs := strings.Split(line[pos+1:len(line)-1], ","); len(ptrs) != 2 {
-				continue
-			} else if ptr, err := strconv.ParseUint(strings.TrimSpace(ptrs[1]), 0, 64); err != nil {
-				continue
-			} else {
-				return (*context)(unsafe.Pointer(uintptr(ptr))).userContext
-			}
-		}
+var magicRex = func() *regexp.Regexp {
+    rexStr := `\(0x[[:xdigit:]]+, 0x([[:xdigit:]]+)`
+    for _, n := range magicNums {
+        rexStr += ", 0x" + strconv.FormatUint(uint64(n), 16)
     }
-    return nil
+    return regexp.MustCompile(rexStr + `\)`)
+}()
+
+// this is the containing structure for
+// user data associated with context
+type dataCntr struct {
+    data interface{}
 }
 
-func _6cf1657a_db81_11e5_ac2b_1f398c325387(fn func(), ctx *context) {
-    fn()
+func findCntr() *dataCntr {
+    stack := make([]byte, StackBufferSize)
+    size := runtime.Stack(stack, false)
+    n := magicRex.FindSubmatchIndex(stack[0:size])
+    if len(n) < 4 {
+        return nil
+    }
+    ptrStr := string(stack[n[2]:n[3]])
+    if ptr, err := strconv.ParseUint(ptrStr, 16, 64); err != nil {
+        return nil
+    } else {
+        return (*dataCntr)(unsafe.Pointer(uintptr(ptr)))
+    }
+}
+
+func Get() interface{} {
+    cntr := findCntr()
+    if cntr == nil {
+        panic("Unable to find GLS data, make sure gls.Go is called")
+    }
+    return cntr.data
+}
+
+func GetSafe() interface{} {
+    cntr := findCntr()
+    if cntr == nil {
+        return nil
+    }
+    return cntr.data
 }
