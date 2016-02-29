@@ -3,8 +3,17 @@ package gls
 import (
     "crypto/rand"
     "encoding/hex"
+    "flag"
     "testing"
 )
+
+var (
+    recursiveLevels int = 90
+)
+
+func init() {
+    flag.IntVar(&recursiveLevels, "recursive-max", recursiveLevels, "Max recursive levels")
+}
 
 func makeUniqueStr() string {
     raw := make([]byte, 16)
@@ -56,6 +65,30 @@ func TestFwGoRoutine(t *testing.T) {
         ch := make(chan string)
         Go(func() {
             ch <- Get().(string)
+        })
+        str := <- ch
+        if str != original {
+            t.Fatal("Get returns a different value")
+        }
+    })
+}
+
+func recursiveFn(level, maxLevel int, fn func()) {
+    if level < maxLevel {
+        recursiveFn(level + 1, maxLevel, fn)
+    } else {
+        fn()
+    }
+}
+
+func TestDeepStack(t *testing.T) {
+    original := makeUniqueStr()
+    With(original, func() {
+        ch := make(chan string)
+        Go(func() {
+            recursiveFn(0, recursiveLevels, func() {
+                ch <- Get().(string)
+            })
         })
         str := <- ch
         if str != original {

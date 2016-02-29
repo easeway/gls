@@ -76,34 +76,17 @@ function call with magic function name (containing a UUID).
 By parsing the arguments (pointer values) passed to the function, we can find
 the context associated with current Go routine.
 
-## Limitations
+### Supported platforms and architectures
 
-- Not cross Go routines
+The implementation is a little different on 32-bit/64-bit architectures,
+because the size of uint passed in the function is different.
 
-  The context is for one Go routine, if some functions are invoked using `go fn()`, the context should be explicitly passed:
+### Limitations
 
-  ```
-  context := gls.Get()
-  go gls.With(context, workFn)
-  ```
-
-  or with helper
-
-  ```
-  gls.Go(workFn)
-  ```
-
-- Limited buffer for stack trace
-
-  `gls` uses `runtime.Stack` to dump formatted stack.
-  The default buffer size is defined in `gls.StackBufferSize`.
-  If the stack will become very deep, please tune `gls.StackBufferSize`
-  to a large value in the beginning of your program.
-
-- Supported platforms and architectures
-
-  The implementation is a little different on 32-bit/64-bit architectures,
-  because the size of uint passed in the function is different.
+`runtime.Stack` returns maximum `_TracebackMaxFrames = 100`
+(see `src/runtime/runtime2.go` and `src/runtime/traceback.go`) frames,
+`gls.Get` will fail to find the context if the stack is too deep.
+Keep this in mind when using this library.
 
 ## License
 MIT

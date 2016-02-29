@@ -3,11 +3,9 @@ package gls
 import (
     "strconv"
     "regexp"
-    "runtime"
+    "runtime/debug"
     "unsafe"
 )
-
-var StackBufferSize = 4096
 
 var magicRex = func() *regexp.Regexp {
     rexStr := `\(0x[[:xdigit:]]+, 0x([[:xdigit:]]+)`
@@ -24,9 +22,10 @@ type dataCntr struct {
 }
 
 func findCntr() *dataCntr {
-    stack := make([]byte, StackBufferSize)
-    size := runtime.Stack(stack, false)
-    n := magicRex.FindSubmatchIndex(stack[0:size])
+    // LIMIT: debug.Stack() returns max _TracebackMaxFrames = 100 frames
+    stack := debug.Stack()
+    println(len(stack))
+    n := magicRex.FindSubmatchIndex(stack)
     if len(n) < 4 {
         return nil
     }

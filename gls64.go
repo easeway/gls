@@ -1,4 +1,4 @@
-// +build !386,!arm
+// +build amd64
 
 package gls
 
