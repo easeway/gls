@@ -24,7 +24,6 @@ type dataCntr struct {
 func findCntr() *dataCntr {
     // LIMIT: debug.Stack() returns max _TracebackMaxFrames = 100 frames
     stack := debug.Stack()
-    println(len(stack))
     n := magicRex.FindSubmatchIndex(stack)
     if len(n) < 4 {
         return nil
